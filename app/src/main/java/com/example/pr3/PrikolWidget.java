@@ -2,11 +2,20 @@ package com.example.pr3;
 
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
+import android.content.ComponentName;
 import android.content.Context;
 import android.util.Log;
 import android.widget.RemoteViews;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.target.AppWidgetTarget;
+
+import org.json.JSONObject;
+
 import java.util.Arrays;
+
+import static com.example.pr3.ConnectFetchJava.getIconUrl;
+import static com.example.pr3.StaticWeatherAnalyser.getTemperatureField;
 
 /**
  * Implementation of App Widget functionality.
@@ -14,16 +23,21 @@ import java.util.Arrays;
 public class PrikolWidget extends AppWidgetProvider {
     final String LOG_TAG = "jopaLogs";
 
-    static void updateAppWidget(Context context, AppWidgetManager appWidgetManager,
-                                int appWidgetId) {
+    static void updateAppWidget(final Context context, AppWidgetManager appWidgetManager,
+                                final int appWidgetId) {
 
-        CharSequence widgetText = context.getString(R.string.appwidget_text);
-        // Construct the RemoteViews object
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.prikol_widget);
-        //views.setTextViewText(R.id.appwidget_text, widgetText);
+        final RemoteViews remoteViews = new RemoteViews(context.getPackageName(), R.layout.prikol_widget);
+        new  ConnectFetchJava(context, "Orenburg", new ConnectFetchJava.OnConnectionCompleteListener() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                renderWeather(response,context,remoteViews,appWidgetId);
+            }
 
-        // Instruct the widget manager to update the widget
-        appWidgetManager.updateAppWidget(appWidgetId, views);
+            @Override
+            public void onFail(String message) {
+            }
+        });
+        appWidgetManager.updateAppWidget(appWidgetId, remoteViews);
     }
 
     @Override
@@ -49,5 +63,29 @@ public class PrikolWidget extends AppWidgetProvider {
     public void onDisabled(Context context) {
         Log.d(LOG_TAG, "cockDisabled");
     }
+
+    public static void pushWidgetUpdate(Context context, RemoteViews rv) {
+        ComponentName myWidget = new ComponentName(context, PrikolWidget.class);
+        AppWidgetManager manager = AppWidgetManager.getInstance(context);
+        manager.updateAppWidget(myWidget, rv);
+    }
+
+
+
+    public static void renderWeather(JSONObject json, Context context, RemoteViews remoteViews, int appWidgetId){
+        try {
+            AppWidgetTarget appWidgetTarget = new AppWidgetTarget(context, remoteViews, R.id.weather_icon, appWidgetId);
+
+            Glide.with(context.getApplicationContext())
+                    .load(getIconUrl(json))
+                    .asBitmap().
+                    into( appWidgetTarget );
+            remoteViews.setTextViewText(R.id.details_field, getTemperatureField(json));
+            pushWidgetUpdate(context, remoteViews);
+        }catch(Exception e){
+            Log.e("SimpleWeather", "One or more fields not found in the JSON data");
+        }
+    }
+
 }
 
