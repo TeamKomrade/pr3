@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 import android.widget.RemoteViews;
 
@@ -23,14 +24,20 @@ import static com.example.pr3.StaticWeatherAnalyser.getTemperatureField;
 public class PrikolWidget extends AppWidgetProvider {
     final String LOG_TAG = "jopaLogs";
 
-    static void updateAppWidget(final Context context, AppWidgetManager appWidgetManager,
+    static void updateAppWidget(final Context context, SharedPreferences sharedPreferences, final AppWidgetManager appWidgetManager,
                                 final int appWidgetId) {
 
+        // Читаем параметры Preferences
+        String widgetCity = sharedPreferences.getString(ConfigActivity.WIDGET_CITY + appWidgetId, null);
+        if (widgetCity == null) return;
+
         final RemoteViews remoteViews = new RemoteViews(context.getPackageName(), R.layout.prikol_widget);
-        new  ConnectFetchJava(context, "Orenburg", new ConnectFetchJava.OnConnectionCompleteListener() {
+        remoteViews.setTextViewText(R.id.city_field,widgetCity);
+
+        new  ConnectFetchJava(context, widgetCity, new ConnectFetchJava.OnConnectionCompleteListener() {
             @Override
             public void onSuccess(JSONObject response) {
-                renderWeather(response,context,remoteViews,appWidgetId);
+                renderWeather(response,context,remoteViews,appWidgetId, appWidgetManager);
             }
 
             @Override
@@ -40,18 +47,30 @@ public class PrikolWidget extends AppWidgetProvider {
         appWidgetManager.updateAppWidget(appWidgetId, remoteViews);
     }
 
+
     @Override
     public void onDeleted(Context context, int[] appWidgetIds) {
         super.onDeleted(context, appWidgetIds);
-        Log.d(LOG_TAG, "cockDeleted " + Arrays.toString(appWidgetIds));
+        // Удаляем Preferences
+        SharedPreferences.Editor editor = context.getSharedPreferences(
+                ConfigActivity.WIDGET_PREF, Context.MODE_PRIVATE).edit();
+        for (int widgetID : appWidgetIds) {
+            editor.remove(ConfigActivity.WIDGET_CITY + widgetID);
+        }
+        Log.d(LOG_TAG, "onDeleted " + Arrays.toString(appWidgetIds));
+
     }
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        //<
+        SharedPreferences sp = context.getSharedPreferences(
+                ConfigActivity.WIDGET_PREF, Context.MODE_PRIVATE);
+        // There may be multiple widgets active, so update all of them
         for (int appWidgetId : appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId);
+            updateAppWidget(context,sp, appWidgetManager, appWidgetId);
         }
-        Log.d(LOG_TAG, "cockUpdate " + Arrays.toString(appWidgetIds));
+        Log.d(LOG_TAG, "onUpdate " + Arrays.toString(appWidgetIds));
     }
 
     @Override
@@ -72,7 +91,7 @@ public class PrikolWidget extends AppWidgetProvider {
 
 
 
-    public static void renderWeather(JSONObject json, Context context, RemoteViews remoteViews, int appWidgetId){
+    public static void renderWeather(JSONObject json, Context context, RemoteViews remoteViews, int appWidgetId, AppWidgetManager appWidgetManager){
         try {
             AppWidgetTarget appWidgetTarget = new AppWidgetTarget(context, remoteViews, R.id.weather_icon, appWidgetId);
 
@@ -81,7 +100,7 @@ public class PrikolWidget extends AppWidgetProvider {
                     .asBitmap().
                     into( appWidgetTarget );
             remoteViews.setTextViewText(R.id.details_field, getTemperatureField(json));
-            pushWidgetUpdate(context, remoteViews);
+            appWidgetManager.updateAppWidget(appWidgetId, remoteViews);
         }catch(Exception e){
             Log.e("SimpleWeather", "One or more fields not found in the JSON data");
         }

@@ -1,10 +1,16 @@
 package com.example.pr3;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.InputType;
 import android.util.Log;
+import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -21,16 +27,28 @@ import static com.example.pr3.StaticWeatherAnalyser.getTemperatureField;
 
 public class MainActivity extends AppCompatActivity {
     Handler handler;
+    private SwipeRefreshLayout mSwipeRefreshLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        mSwipeRefreshLayout = findViewById(R.id.swipe_container);
+        mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                setInfo();
+            }
+        });
+        setInfo();
+    }
 
-        new ConnectFetchJava(this, "Orenburg", new ConnectFetchJava.OnConnectionCompleteListener() {
+    private void setInfo() {
+        new  ConnectFetchJava(this, new CityPreference(this).getCity(), new ConnectFetchJava.OnConnectionCompleteListener() {
             @Override
             public void onSuccess(JSONObject response) {
                 renderWeather(response);
+                mSwipeRefreshLayout.setRefreshing(false);
             }
 
             @Override
@@ -39,10 +57,31 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this,
                         message,
                         Toast.LENGTH_LONG).show();
+                mSwipeRefreshLayout.setRefreshing(false);
             }
         });
+
     }
 
+    public void changeCity(String city){
+        new CityPreference(this).setCity(city);
+        setInfo();
+    }
+
+    private void showInputDialog(){
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Измените город:");
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        builder.setView(input);
+        builder.setPositiveButton("Сохранить", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                changeCity(input.getText().toString());
+            }
+        });
+        builder.show();
+    }
 
     private void renderWeather(JSONObject json){
         try {
@@ -61,4 +100,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void setCity(View view) {
+        showInputDialog();
+    }
 }
