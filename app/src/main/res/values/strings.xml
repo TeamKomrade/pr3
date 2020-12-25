@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">pr3</string>
+    <string name="widget_name">выджед</string>
+    <string name="widget_text">кекст выджета</string>
+    <string name="appwidget_text">EXAMPLE</string>
+    <string name="add_widget">Add widget</string>
+</resources>
